@@ -60,6 +60,10 @@ export const processStatement = async (file: File): Promise<Transaction[]> => {
     reader.readAsDataURL(file);
   });
 
+  if (!process.env.API_KEY) {
+    throw new Error(`[${API_VERSION}] Gemini API key is missing from this build. Set GEMINI_API_KEY in the hosting environment variables and redeploy.`);
+  }
+
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const response = await generateWithRetry(ai, {
