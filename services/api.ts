@@ -20,7 +20,7 @@ const generateWithRetry = async (
         return await ai.models.generateContent({ ...request, model });
       } catch (error) {
         lastError = error;
-        const status = error instanceof ApiError ? error.status : undefined;
+        const status = (error as ApiError)?.status;
         if (!status || !RETRYABLE_STATUSES.includes(status)) throw error;
         if (attempt < MAX_ATTEMPTS_PER_MODEL - 1) {
           await sleep(1000 * 2 ** attempt + Math.random() * 500);
