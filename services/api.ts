@@ -1,6 +1,36 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { ApiError, GoogleGenAI, GenerateContentParameters, GenerateContentResponse, Type } from "@google/genai";
 import { Transaction } from "../types";
+
+// Preview models are frequently overloaded (HTTP 503), so fall back to a stable model.
+const MODELS = ['gemini-3-flash-preview', 'gemini-2.5-flash'];
+const MAX_ATTEMPTS_PER_MODEL = 3;
+const RETRYABLE_STATUSES = [429, 500, 503, 504];
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const generateWithRetry = async (
+  ai: GoogleGenAI,
+  request: Omit<GenerateContentParameters, 'model'>
+): Promise<GenerateContentResponse> => {
+  let lastError: unknown;
+  for (const model of MODELS) {
+    for (let attempt = 0; attempt < MAX_ATTEMPTS_PER_MODEL; attempt++) {
+      try {
+        return await ai.models.generateContent({ ...request, model });
+      } catch (error) {
+        lastError = error;
+        const status = error instanceof ApiError ? error.status : undefined;
+        if (!status || !RETRYABLE_STATUSES.includes(status)) throw error;
+        if (attempt < MAX_ATTEMPTS_PER_MODEL - 1) {
+          await sleep(1000 * 2 ** attempt + Math.random() * 500);
+        }
+      }
+    }
+  }
+  console.error("Gemini unavailable after retries", lastError);
+  throw new Error("Gemini AI is currently overloaded (503). Please try again in a minute.");
+};
 
 export const processStatement = async (file: File): Promise<Transaction[]> => {
   if (typeof window === 'undefined') {
@@ -19,8 +49,7 @@ export const processStatement = async (file: File): Promise<Transaction[]> => {
 
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
+  const response = await generateWithRetry(ai, {
     contents: [
       {
         parts: [
