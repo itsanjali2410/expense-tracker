@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Upload, FileText, AlertCircle, Loader2, Sparkles, ChevronDown, Globe, Target, Settings2 } from 'lucide-react';
 import { Transaction, TransactionType, SummaryStats, CurrencyCode, CURRENCIES } from '../types';
-import { processStatement } from '../services/api';
+import { processStatement, API_VERSION, BUILD_TIME } from '../services/api';
 import { SummaryCards } from './components/SummaryCards';
 import { SpendingCharts } from './components/SpendingCharts';
 import { TransactionTable } from './components/TransactionTable';
@@ -278,6 +278,9 @@ const App: React.FC = () => {
       <footer className="mt-20 sm:mt-32 py-8 sm:py-12 border-t border-slate-100 text-center px-4">
         <p className="text-[8px] sm:text-xs font-black text-slate-300 uppercase tracking-[0.2em] leading-relaxed">
           Gemini Secure • Privacy First • Local Session Only
+        </p>
+        <p className="mt-2 text-[8px] sm:text-[10px] font-mono text-slate-300">
+          API {API_VERSION} • Built {BUILD_TIME}
         </p>
       </footer>
     </div>

@@ -2,10 +2,17 @@
 import { ApiError, GoogleGenAI, GenerateContentParameters, GenerateContentResponse, Type } from "@google/genai";
 import { Transaction } from "../types";
 
+// Bump this whenever the API logic changes; it is shown in the footer and console
+// so you can confirm which version is actually deployed.
+export const API_VERSION = 'v2-retry-fallback';
+export const BUILD_TIME = process.env.BUILD_TIME || 'dev';
+
 // Preview models are frequently overloaded (HTTP 503), so fall back to a stable model.
 const MODELS = ['gemini-3-flash-preview', 'gemini-2.5-flash'];
 const MAX_ATTEMPTS_PER_MODEL = 3;
 const RETRYABLE_STATUSES = [429, 500, 503, 504];
+
+console.info(`[api ${API_VERSION}] loaded, built ${BUILD_TIME}, models: ${MODELS.join(' -> ')}`);
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -17,19 +24,25 @@ const generateWithRetry = async (
   for (const model of MODELS) {
     for (let attempt = 0; attempt < MAX_ATTEMPTS_PER_MODEL; attempt++) {
       try {
-        return await ai.models.generateContent({ ...request, model });
+        console.info(`[api ${API_VERSION}] ${model} attempt ${attempt + 1}/${MAX_ATTEMPTS_PER_MODEL}`);
+        const response = await ai.models.generateContent({ ...request, model });
+        console.info(`[api ${API_VERSION}] ${model} succeeded`);
+        return response;
       } catch (error) {
         lastError = error;
         const status = (error as ApiError)?.status;
-        if (!status || !RETRYABLE_STATUSES.includes(status)) throw error;
+        console.warn(`[api ${API_VERSION}] ${model} attempt ${attempt + 1} failed with status ${status ?? 'unknown'}`);
+        if (!status || !RETRYABLE_STATUSES.includes(status)) {
+          throw new Error(`[${API_VERSION}] Gemini request failed (${status ?? 'unknown'}): ${(error as Error)?.message}`);
+        }
         if (attempt < MAX_ATTEMPTS_PER_MODEL - 1) {
           await sleep(1000 * 2 ** attempt + Math.random() * 500);
         }
       }
     }
   }
-  console.error("Gemini unavailable after retries", lastError);
-  throw new Error("Gemini AI is currently overloaded (503). Please try again in a minute.");
+  console.error(`[api ${API_VERSION}] Gemini unavailable after retries on all models`, lastError);
+  throw new Error(`[${API_VERSION}] Gemini AI is currently overloaded (503) on all models after retries. Please try again in a minute.`);
 };
 
 export const processStatement = async (file: File): Promise<Transaction[]> => {
