@@ -19,28 +19,39 @@ export const CURRENCIES: Record<CurrencyCode, CurrencyConfig> = {
   GBP: { code: 'GBP', symbol: '£', locale: 'en-GB' },
 };
 
-export type Category = 
-  | 'Groceries' 
-  | 'Dining Out' 
-  | 'Electronics' 
-  | 'Clothing' 
-  | 'Travel' 
-  | 'Healthcare' 
-  | 'Education' 
-  | 'Entertainment' 
-  | 'Home Improvement' 
-  | 'Utilities & Bills' 
-  | 'Subscriptions' 
-  | 'Salary' 
-  | 'Investments' 
-  | 'Bank Fees' 
-  | 'Transfers' 
-  | 'Misc';
+// Single source of truth for categories (Gemini schema, budgets, analytics).
+export const CATEGORIES = [
+  'Groceries',
+  'Dining Out',
+  'Food Delivery',
+  'Transport',
+  'Rent',
+  'Debt & EMI',
+  'Electronics',
+  'Clothing',
+  'Travel',
+  'Healthcare',
+  'Education',
+  'Entertainment',
+  'Home Improvement',
+  'Utilities & Bills',
+  'Subscriptions',
+  'Salary',
+  'Investments',
+  'Bank Fees',
+  'Transfers',
+  'Misc',
+] as const;
+
+export type Category = typeof CATEGORIES[number];
 
 export interface Transaction {
   id: string;
   date: string;
+  // Raw statement text, e.g. "POS-98421-SWIGGY-BLR".
   description: string;
+  // Cleaned merchant name, e.g. "Swiggy".
+  merchant: string;
   amount: number;
   type: TransactionType;
   category: Category;

@@ -12,6 +12,7 @@
     "@google/genai": "^1.37.0",
     "install": "^0.13.0",
     "lucide-react": "^0.562.0",
+    "pdfjs-dist": "^6.4.299",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "recharts": "^3.6.0"

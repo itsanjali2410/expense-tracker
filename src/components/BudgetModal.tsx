@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Category, CategoryBudget, CURRENCIES, CurrencyCode } from '../../types';
+import { Category, CATEGORIES, CURRENCIES, CurrencyCode } from '../../types';
 import { X, Save, Target } from 'lucide-react';
 
 interface BudgetModalProps {
@@ -10,11 +10,7 @@ interface BudgetModalProps {
   currencyCode: CurrencyCode;
 }
 
-const CATEGORIES: Category[] = [
-  'Groceries', 'Dining Out', 'Electronics', 'Clothing', 'Travel', 'Healthcare', 
-  'Education', 'Entertainment', 'Home Improvement', 'Utilities & Bills', 
-  'Subscriptions', 'Investments', 'Bank Fees', 'Misc'
-];
+const BUDGET_CATEGORIES = CATEGORIES.filter(cat => cat !== 'Salary' && cat !== 'Transfers');
 
 export const BudgetModal: React.FC<BudgetModalProps> = ({ budgets, onSave, onClose, currencyCode }) => {
   const [localBudgets, setLocalBudgets] = useState<Record<string, number>>(budgets);
@@ -44,7 +40,7 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({ budgets, onSave, onClo
           <p className="text-sm text-slate-500 mb-6 italic">
             Define your spending limits for each category to track progress in the Analysis Panel.
           </p>
-          {CATEGORIES.map(cat => (
+          {BUDGET_CATEGORIES.map(cat => (
             <div key={cat} className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 transition-all focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500">
               <label className="text-sm font-semibold text-slate-700 w-1/2">{cat}</label>
               <div className="relative w-1/2">

@@ -15,6 +15,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({ transactions
   const filteredAndSorted = useMemo(() => {
     return [...transactions]
       .filter(t => 
+        t.merchant.toLowerCase().includes(searchTerm.toLowerCase()) ||
         t.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
         t.category.toLowerCase().includes(searchTerm.toLowerCase())
       )
@@ -32,6 +33,10 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({ transactions
     switch (cat) {
       case 'Groceries': return 'bg-emerald-100 text-emerald-700';
       case 'Dining Out': return 'bg-orange-100 text-orange-700';
+      case 'Food Delivery': return 'bg-orange-100 text-orange-800';
+      case 'Transport': return 'bg-teal-100 text-teal-700';
+      case 'Rent': return 'bg-stone-200 text-stone-700';
+      case 'Debt & EMI': return 'bg-red-100 text-red-800';
       case 'Electronics': return 'bg-blue-100 text-blue-700';
       case 'Clothing': return 'bg-purple-100 text-purple-700';
       case 'Travel': return 'bg-sky-100 text-sky-700';
@@ -57,7 +62,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({ transactions
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search by description..."
+            placeholder="Search merchant or category..."
             className="pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 w-full sm:w-64"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -80,7 +85,10 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({ transactions
             {filteredAndSorted.map((t) => (
               <tr key={t.id} className="hover:bg-slate-50/80 transition-all duration-200 group">
                 <td className="px-8 py-5 text-sm text-slate-500 whitespace-nowrap">{new Date(t.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</td>
-                <td className="px-8 py-5 text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{t.description}</td>
+                <td className="px-8 py-5">
+                  <p className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{t.merchant}</p>
+                  {t.description !== t.merchant && <p className="text-xs text-slate-400 mt-0.5 break-all">{t.description}</p>}
+                </td>
                 <td className="px-8 py-5">
                   <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${getCategoryColor(t.category)}`}>
                     {t.category}
