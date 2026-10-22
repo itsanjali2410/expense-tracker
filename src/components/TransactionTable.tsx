@@ -1,19 +1,23 @@
 
 import React, { useMemo, useState } from 'react';
 import { Transaction, TransactionType, CurrencyConfig } from '../../types';
-import { ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { ChevronDown, ChevronUp, Search, X } from 'lucide-react';
 
 interface TransactionTableProps {
   transactions: Transaction[];
   currency: CurrencyConfig;
+  // Set by tapping a pie slice; shows only that category.
+  categoryFilter: string | null;
+  onClearFilter: () => void;
 }
 
-export const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, currency }) => {
+export const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, currency, categoryFilter, onClearFilter }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   const filteredAndSorted = useMemo(() => {
     return [...transactions]
+      .filter(t => !categoryFilter || t.category === categoryFilter)
       .filter(t => 
         t.merchant.toLowerCase().includes(searchTerm.toLowerCase()) ||
         t.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -24,7 +28,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({ transactions
         const dateB = new Date(b.date).getTime();
         return sortDir === 'asc' ? dateA - dateB : dateB - dateA;
       });
-  }, [transactions, searchTerm, sortDir]);
+  }, [transactions, searchTerm, sortDir, categoryFilter]);
 
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat(currency.locale, { style: 'currency', currency: currency.code }).format(val);
@@ -57,7 +61,18 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({ transactions
   return (
     <div className="bg-white rounded-4xl shadow-sm border border-slate-100 overflow-hidden">
       <div className="p-8 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h3 className="text-xl font-bold text-slate-900">Transactions</h3>
+        <div className="flex flex-wrap items-center gap-3">
+          <h3 className="text-xl font-bold text-slate-900">Transactions</h3>
+          {categoryFilter && (
+            <button
+              onClick={onClearFilter}
+              className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${getCategoryColor(categoryFilter)}`}
+            >
+              {categoryFilter}
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input

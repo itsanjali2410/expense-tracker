@@ -6,9 +6,11 @@ import { Transaction, TransactionType, CurrencyConfig } from '../../types';
 interface SpendingChartsProps {
   transactions: Transaction[];
   currency: CurrencyConfig;
+  onCategorySelect: (category: string) => void;
+  onDaySelect: (date: string) => void;
 }
 
-export const SpendingCharts: React.FC<SpendingChartsProps> = ({ transactions, currency }) => {
+export const SpendingCharts: React.FC<SpendingChartsProps> = ({ transactions, currency, onCategorySelect, onDaySelect }) => {
   const categoryData = useMemo(() => {
     const summary = transactions
       .filter(t => t.type === TransactionType.DEBIT)
@@ -44,11 +46,22 @@ export const SpendingCharts: React.FC<SpendingChartsProps> = ({ transactions, cu
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-        <h3 className="text-lg font-semibold text-slate-900 mb-6">Expense Distribution</h3>
+        <h3 className="text-lg font-semibold text-slate-900">Expense Distribution</h3>
+        <p className="text-xs text-slate-400 mb-4">Tap a slice to see its transactions.</p>
         <div className="h-75 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
-              <Pie data={categoryData} cx="50%" cy="50%" innerRadius={70} outerRadius={90} paddingAngle={4} dataKey="value">
+              <Pie
+                data={categoryData}
+                cx="50%"
+                cy="50%"
+                innerRadius={70}
+                outerRadius={90}
+                paddingAngle={4}
+                dataKey="value"
+                className="cursor-pointer"
+                onClick={(entry: any) => onCategorySelect(entry.name ?? entry.payload?.name)}
+              >
                 {categoryData.map((_, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
               </Pie>
               <Tooltip formatter={(value: number) => formatCurrency(value)} />
@@ -59,7 +72,8 @@ export const SpendingCharts: React.FC<SpendingChartsProps> = ({ transactions, cu
       </div>
 
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-        <h3 className="text-lg font-semibold text-slate-900 mb-6">Recent Daily Trend</h3>
+        <h3 className="text-lg font-semibold text-slate-900">Recent Daily Trend</h3>
+        <p className="text-xs text-slate-400 mb-4">Tap a bar to open that day.</p>
         <div className="h-75 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={barData}>
@@ -67,7 +81,13 @@ export const SpendingCharts: React.FC<SpendingChartsProps> = ({ transactions, cu
               <XAxis dataKey="date" tick={{fontSize: 11}} tickFormatter={(str) => new Date(str).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})} axisLine={false} tickLine={false} />
               <YAxis tick={{fontSize: 11}} axisLine={false} tickLine={false} tickFormatter={(val) => `${currency.symbol}${val}`} />
               <Tooltip cursor={{fill: '#f8fafc'}} formatter={(value: number) => [formatCurrency(value), 'Spent']} />
-              <Bar dataKey="amount" fill="#6366f1" radius={[4, 4, 0, 0]} />
+              <Bar
+                dataKey="amount"
+                fill="#6366f1"
+                radius={[4, 4, 0, 0]}
+                className="cursor-pointer"
+                onClick={(entry: any) => onDaySelect(entry.payload?.date ?? entry.date)}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>

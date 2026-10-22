@@ -4,6 +4,7 @@ import { Transaction, TransactionType, SummaryStats, CurrencyCode, CURRENCIES } 
 import { processStatement, generateInsights, askStatement, PasswordRequiredError, WeeklyInsights, ChatMessage, API_VERSION, BUILD_TIME } from '../services/api';
 import { ACCEPTED_FILES, isSupportedFile } from '../services/ingest';
 import { analyze, Analysis, WeekMode } from '../services/analytics';
+import { analyzeDays, formatDayLong } from '../services/daily';
 import { SummaryCards } from './components/SummaryCards';
 import { SpendingCharts } from './components/SpendingCharts';
 import { TransactionTable } from './components/TransactionTable';
@@ -12,6 +13,7 @@ import { BudgetModal } from './components/BudgetModal';
 import { WeeklyView } from './components/WeeklyView';
 import { InsightsView } from './components/InsightsView';
 import { ChatPanel } from './components/ChatPanel';
+import { DailyView } from './components/DailyView';
 
 const LOADING_STEPS = [
   "Reading your statement...",
@@ -24,6 +26,7 @@ const LOADING_STEPS = [
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
+  { id: 'daily', label: 'Daily' },
   { id: 'weekly', label: 'Weekly' },
   { id: 'insights', label: 'Insights' },
   { id: 'chat', label: 'Chat' },
@@ -53,6 +56,10 @@ const App: React.FC = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setIsMounted(true);
@@ -89,6 +96,8 @@ const App: React.FC = () => {
       setTab('overview');
       setChatMessages([]);
       setChatError(null);
+      setSelectedDay(null);
+      setCategoryFilter(null);
     } catch (err: any) {
       if (err instanceof PasswordRequiredError) {
         setLockedFile(file);
@@ -178,6 +187,44 @@ const App: React.FC = () => {
     } finally {
       setChatLoading(false);
     }
+  };
+
+  const daily = useMemo(
+    () => analyzeDays(transactions, selectedCurrency, formatMoney),
+    [transactions, selectedCurrency, formatMoney],
+  );
+
+  // "September 2026", or "Aug – Sept 2026" when the statement spans months.
+  const periodLabel = useMemo(() => {
+    if (!daily.days.length) return '';
+    const format = (key: string, options: Intl.DateTimeFormatOptions) =>
+      new Date(`${key}T00:00:00Z`).toLocaleDateString('en-GB', { ...options, timeZone: 'UTC' });
+    const first = daily.days[0].key;
+    const last = daily.days[daily.days.length - 1].key;
+    return first.slice(0, 7) === last.slice(0, 7)
+      ? format(first, { month: 'long', year: 'numeric' })
+      : `${format(first, { month: 'short' })} – ${format(last, { month: 'short', year: 'numeric' })}`;
+  }, [daily]);
+  const priciestDay = daily.highlights.find(h => h.dayKey);
+
+  const showTab = (next: Tab) => {
+    setTab(next);
+    tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const openDay = (key: string) => {
+    setSelectedDay(key);
+    showTab('daily');
+  };
+
+  const filterByCategory = (category: string) => {
+    setCategoryFilter(category);
+    tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const askAbout = (question: string) => {
+    showTab('chat');
+    if (!chatLoading) sendChat(question);
   };
 
   const stats: SummaryStats = useMemo(() => {
@@ -393,14 +440,50 @@ const App: React.FC = () => {
               </div>
             </div>
 
+            {/* One-line story of the statement */}
+            <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
+              <p className="text-base sm:text-lg text-slate-700 leading-relaxed">
+                {periodLabel && <>In <strong className="text-slate-900">{periodLabel}</strong> you </>}
+                {!periodLabel && <>You </>}
+                earned <strong className="text-emerald-600">{formatMoney(stats.totalIncome)}</strong>, spent{' '}
+                <strong className="text-rose-600">{formatMoney(stats.totalExpenses)}</strong>
+                {stats.netBalance >= 0 ? (
+                  <> and kept <strong className="text-slate-900">{formatMoney(stats.netBalance)}</strong>
+                    {stats.totalIncome > 0 && <> ({Math.round((stats.netBalance / stats.totalIncome) * 100)}% of income)</>}.</>
+                ) : (
+                  <>, which is <strong className="text-rose-600">{formatMoney(-stats.netBalance)}</strong> more than came in.</>
+                )}
+              </p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                {daily.daysTracked > 0 && (
+                  <button
+                    onClick={() => showTab('daily')}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                      daily.daysUnderLimit / daily.daysTracked >= 0.7 ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                    }`}
+                  >
+                    Under your daily limit on {daily.daysUnderLimit} of {daily.daysTracked} days →
+                  </button>
+                )}
+                {priciestDay?.dayKey && (
+                  <button
+                    onClick={() => openDay(priciestDay.dayKey!)}
+                    className="px-3 py-1.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors"
+                  >
+                    Priciest day: {formatDayLong(priciestDay.dayKey)} ({priciestDay.value}) →
+                  </button>
+                )}
+              </div>
+            </div>
+
             <SummaryCards stats={stats} currency={CURRENCIES[selectedCurrency]} />
 
             {/* Tabs */}
-            <div className="flex gap-1 bg-white border border-slate-200 rounded-2xl p-1 w-full sm:w-fit overflow-x-auto no-scrollbar">
+            <div ref={tabsRef} className="scroll-mt-24 flex gap-1 bg-white border border-slate-200 rounded-2xl p-1 w-full sm:w-fit overflow-x-auto no-scrollbar">
               {TABS.map(({ id, label }) => (
                 <button
                   key={id}
-                  onClick={() => setTab(id)}
+                  onClick={() => showTab(id)}
                   className={`flex-1 sm:flex-none px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
                     tab === id ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'
                   }`}
@@ -413,10 +496,20 @@ const App: React.FC = () => {
             {tab === 'overview' && (
               <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 sm:gap-10">
                 <div className="xl:col-span-8 space-y-8 sm:space-y-10 order-2 xl:order-1">
-                  <SpendingCharts transactions={transactions} currency={CURRENCIES[selectedCurrency]} />
+                  <SpendingCharts
+                    transactions={transactions}
+                    currency={CURRENCIES[selectedCurrency]}
+                    onCategorySelect={filterByCategory}
+                    onDaySelect={openDay}
+                  />
                   {/* Horizontal scroll container for table on small screens */}
-                  <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-                    <TransactionTable transactions={transactions} currency={CURRENCIES[selectedCurrency]} />
+                  <div ref={tableRef} className="scroll-mt-24 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                    <TransactionTable
+                      transactions={transactions}
+                      currency={CURRENCIES[selectedCurrency]}
+                      categoryFilter={categoryFilter}
+                      onClearFilter={() => setCategoryFilter(null)}
+                    />
                   </div>
                 </div>
                 <div className="xl:col-span-4 order-1 xl:order-2">
@@ -427,8 +520,25 @@ const App: React.FC = () => {
               </div>
             )}
 
+            {tab === 'daily' && (
+              <DailyView
+                daily={daily}
+                currency={CURRENCIES[selectedCurrency]}
+                selectedKey={selectedDay}
+                onSelect={setSelectedDay}
+                onAsk={askAbout}
+              />
+            )}
+
             {tab === 'weekly' && (
-              <WeeklyView analysis={analysis} currency={CURRENCIES[selectedCurrency]} onModeChange={setWeekMode} />
+              <WeeklyView
+                analysis={analysis}
+                daily={daily}
+                transactions={transactions}
+                currency={CURRENCIES[selectedCurrency]}
+                onModeChange={setWeekMode}
+                onDaySelect={openDay}
+              />
             )}
 
             {tab === 'insights' && (

@@ -8,7 +8,7 @@ export { PasswordRequiredError } from "./ingest";
 
 // Bump this whenever the API logic changes; it is shown in the footer and console
 // so you can confirm which version is actually deployed.
-export const API_VERSION = 'v4-weekly-insights';
+export const API_VERSION = 'v6-daily-insights';
 export const BUILD_TIME = process.env.BUILD_TIME || 'dev';
 
 // Preview models are frequently overloaded (HTTP 503), so fall back to a stable model.

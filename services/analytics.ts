@@ -29,12 +29,12 @@ export const BUCKETS: Record<Category, SpendBucket> = {
 };
 
 // "Micro" transactions for the money-sink finder, in the statement's currency.
-const MICRO_THRESHOLD: Record<CurrencyCode, number> = { INR: 300, USD: 10, EUR: 10, GBP: 10 };
+export const MICRO_THRESHOLD: Record<CurrencyCode, number> = { INR: 300, USD: 10, EUR: 10, GBP: 10 };
 // Categories that are naturally frequent, so repeated same-day charges are not "split".
 const FREQUENT: Category[] = ['Groceries', 'Dining Out', 'Food Delivery', 'Transport', 'Transfers'];
 const NOT_SPENDING: Category[] = ['Salary', 'Transfers', 'Investments'];
 // Paid once a month, so they are counted once rather than extrapolated from the daily pace.
-const FIXED_MONTHLY: Category[] = ['Rent', 'Debt & EMI', 'Utilities & Bills', 'Subscriptions', 'Investments'];
+export const FIXED_MONTHLY: Category[] = ['Rent', 'Debt & EMI', 'Utilities & Bills', 'Subscriptions', 'Investments'];
 
 export interface WeekSlice {
   key: string;
@@ -99,14 +99,14 @@ export interface Analysis {
   suggestions: string[];
 }
 
-const DAY_MS = 86_400_000;
+export const DAY_MS = 86_400_000;
 
-const toDay = (date: string): number => {
+export const toDay = (date: string): number => {
   const [y, m, d] = date.split('-').map(Number);
   return Date.UTC(y, m - 1, d) / DAY_MS;
 };
 
-const formatDay = (day: number) =>
+export const formatDay = (day: number) =>
   new Date(day * DAY_MS).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
 export const weekOf = (date: string, weeks: WeekSlice[]): WeekSlice | undefined => {

@@ -1,5 +1,8 @@
-import { getDocument, GlobalWorkerOptions, PasswordException, PasswordResponses, type PDFDocumentProxy } from 'pdfjs-dist';
-import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+// The legacy build bundles polyfills; the modern build relies on very recent JS features
+// (e.g. Map.getOrInsertComputed) that iPhone Safari and older browsers don't have.
+import { getDocument, GlobalWorkerOptions, PasswordException, PasswordResponses } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
+import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
 
 GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -37,12 +40,26 @@ export const openPdf = async (bytes: Uint8Array, password?: string): Promise<PDF
   }
 };
 
+type TextItem = { str: string; transform: number[] };
+
+// page.getTextContent() loops over a ReadableStream with `for await`, which iPhone Safari
+// doesn't support ("undefined is not a function"), so read the stream manually instead.
+const readTextItems = async (page: PDFPageProxy): Promise<(TextItem | object)[]> => {
+  const reader = page.streamTextContent().getReader();
+  const items: (TextItem | object)[] = [];
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) return items;
+    items.push(...value.items);
+  }
+};
+
 // Rebuilds each page line by line so table rows (date, description, amount) stay together.
 export const extractText = async (doc: PDFDocumentProxy): Promise<string> => {
   const pages: string[] = [];
   for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber++) {
     const page = await doc.getPage(pageNumber);
-    const { items } = await page.getTextContent();
+    const items = await readTextItems(page);
     const rows = new Map<number, { x: number; str: string }[]>();
     for (const item of items) {
       if (!('str' in item) || !item.str.trim()) continue;
